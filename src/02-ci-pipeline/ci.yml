@@ -52,8 +52,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Authentification au container registry
-      # Remplacer par les credentials de votre registry (ghcr.io, Scaleway, GitLab…)
+      # 1. On prépare le nom de l'image en minuscules de manière robuste
+      - name: Prepare Image Name
+        run: |
+          IMAGE_NAME="ghcr.io/${{ github.repository }}"
+          echo "IMAGE_TAG=${IMAGE_NAME,,}" >> $GITHUB_ENV
+
+      # 2. Authentification
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4
         with:
@@ -61,16 +66,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set lowercase owner
-        run: echo "OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-
+      # 3. Build et Push en utilisant la variable d'environnement corrigée
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
           context: src/app
           push: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' }}
           tags: |
-            ghcr.io/${{ env.OWNER }}/formation-devops:${{ github.sha }}
-            ghcr.io/${{ env.OWNER }}/formation-devops:latest
+            ${{ env.IMAGE_TAG }}:${{ github.sha }}
+            ${{ env.IMAGE_TAG }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
